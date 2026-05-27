@@ -69,7 +69,7 @@ export default function AdminScreen() {
   };
 
   const handleDelete = async (targetUser: AppUser) => {
-    Alert.alert('Remover usuario', 'Tem certeza? Esta acao e irreversivel.', [
+    Alert.alert('Remover usuário', 'Tem certeza? Esta ação é irreversível.', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Remover',
@@ -121,7 +121,7 @@ export default function AdminScreen() {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[S.title, { color: colors.textPrimary }]}>Painel Admin</Text>
-          <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Bayer Preparação</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Bayer Fito Formulação</Text>
         </View>
         <TouchableOpacity onPress={loadData} style={S.refreshBtn}>
           <Ionicons name="refresh" size={20} color={colors.primary} />
@@ -176,12 +176,12 @@ export default function AdminScreen() {
 
           <View style={{ gap: 8 }}>
             <Text style={[S.sectionLabel, { color: colors.textTertiary }]}>
-              USUARIOS ({users.length})
+              USUÁRIOS ({users.length})
             </Text>
             <View style={[S.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               {users.length === 0 ? (
                 <Text style={{ color: colors.textSecondary, padding: 16, textAlign: 'center' }}>
-                  Nenhum usuario encontrado
+                  Nenhum usuário encontrado
                 </Text>
               ) : (
                 users.map((u, i) => (

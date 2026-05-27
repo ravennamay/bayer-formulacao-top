@@ -1,18 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import BayerLogo from '../../src/BayerLogo';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  Alert,
-  Linking,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BayerLogo from '../../src/BayerLogo';
 
 import { api, useAuth } from '../../src/auth';
 import { useTheme } from '../../src/theme';

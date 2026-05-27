@@ -2,7 +2,12 @@ import axios, { AxiosInstance } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-const BASE = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'http://192.168.1.65:8000';
+const BASE = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://bayer-formulacao.onrender.com';
+
+if (!BASE) {
+  throw new Error('Backend URL não configurada');
+}
+
 console.log('BASE:', process.env.EXPO_PUBLIC_BACKEND_URL);
 const TOKEN_KEY = 'bayer_auth_token';
 
@@ -18,6 +23,7 @@ type AuthContextType = {
   token: string | null;
   loading: boolean;
   api: AxiosInstance;
+  isDemo: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -25,8 +31,8 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export const api: AxiosInstance = axios.create({
-  baseURL: `${BASE}/api`,
+export const api = axios.create({
+  baseURL: `${BASE.replace(/\/$/, '')}/api`,
   timeout: 20000,
 });
 
@@ -61,6 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isDemo, setIsDemo] = useState(false);
 
   const setAuthHeader = (tk: string | null) => {
     if (tk) {
@@ -125,10 +132,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAuthHeader(null);
     setToken(null);
     setUser(null);
+    setIsDemo(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, api, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, api, isDemo, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

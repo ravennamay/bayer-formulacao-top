@@ -19,6 +19,14 @@ const NAV_CARDS = [
     accent: true,
   },
   {
+    id: 'turno',
+    title: 'Gestão de Turno',
+    subtitle: 'Acompanhe especialistas e operadores por turno',
+    icon: 'people',
+    route: '/(tabs)/turno',
+    accent: false,
+  },
+  {
     id: 'report',
     title: 'Relatório de Turno',
     subtitle: 'Resumo formatado com status de todos os lotes',
@@ -29,6 +37,13 @@ const NAV_CARDS = [
 ];
 
 const QUICK_CARDS = [
+  {
+    id: 'tabela',
+    title: 'Tabela de Turnos',
+    subtitle: 'Sua escala',
+    icon: 'calendar',
+    route: '/tabela-turno',
+  },
   {
     id: 'guia',
     title: 'Guia de Formulação',
@@ -84,7 +99,7 @@ export default function HomeScreen() {
   }, [items]);
 
   // Cores para cada situação
-  const situationColors = {
+  const situationColors: Record<string, keyof typeof colors> = {
     Recebido: 'secondary',
     'A preparar': 'warning',
     Preparado: 'success',
@@ -92,7 +107,7 @@ export default function HomeScreen() {
   };
 
   // Ícones para cada situação
-  const situationIcons = {
+  const situationIcons: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
     Recebido: 'archive-outline',
     'A preparar': 'time-outline',
     Preparado: 'checkmark-done-circle-outline',
@@ -169,6 +184,9 @@ export default function HomeScreen() {
         </View>
 
         <Text style={[S.appTitle, { color: colors.textPrimary }]}>Preparação</Text>
+        <Text style={[S.subtitle, { color: colors.textSecondary }]}>
+          Controle de produção diário
+        </Text>
 
         {!isDemo && items.length > 0 && (
           <>
@@ -194,7 +212,7 @@ export default function HomeScreen() {
                 return (
                   <React.Fragment key={situation}>
                     <View style={S.productionItem}>
-                      <Ionicons name={icon as any} size={22} color={color} />
+                      <Ionicons name={icon} size={22} color={color} />
                       <Text style={[S.productionNum, { color }]}>{count}</Text>
                       <Text style={[S.productionLbl, { color: colors.textSecondary }]}>
                         {situation}
@@ -313,11 +331,11 @@ export default function HomeScreen() {
               <View style={[S.smallIconBg, { backgroundColor: colors.primary + '15' }]}>
                 <Ionicons name={card.icon as any} size={22} color={colors.primary} />
               </View>
-              <Text style={[S.smallTitle, { color: colors.textPrimary }]}>{card.title}</Text>
-              <Text style={[S.smallSub, { color: colors.textSecondary }]}>{card.subtitle}</Text>
-              <View style={S.smallArrowWrap}>
-                <Ionicons name="chevron-forward" size={15} color={colors.textTertiary} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={[S.smallTitle, { color: colors.textPrimary }]}>{card.title}</Text>
+                <Text style={[S.smallSub, { color: colors.textSecondary }]}>{card.subtitle}</Text>
               </View>
+              <Ionicons name="chevron-forward" size={15} color={colors.textTertiary} />
             </TouchableOpacity>
           ))}
         </View>
@@ -400,6 +418,11 @@ const S = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -0.8,
     marginTop: 10,
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 13,
+    marginBottom: 12,
   },
   // BARRA DE PRODUÇÃO HORIZONTAL (NOVO ESTILO)
   productionBar: {
@@ -435,7 +458,7 @@ const S = StyleSheet.create({
   scrollContent: {
     padding: 20,
     paddingBottom: 36,
-    gap: 12,
+    gap: 18,
   },
   demoBanner: {
     flexDirection: 'row',
@@ -488,8 +511,8 @@ const S = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1,
-    marginTop: 4,
-    marginBottom: -2,
+    marginTop: 8,
+    marginBottom: 4,
   },
   accentWrap: {
     borderRadius: 22,
@@ -499,12 +522,13 @@ const S = StyleSheet.create({
     shadowOpacity: 0.28,
     shadowRadius: 14,
     elevation: 8,
+    marginTop: 4,
   },
   accentCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
-    padding: 22,
+    padding: 24,
   },
   accentIconBg: {
     width: 52,
@@ -540,6 +564,7 @@ const S = StyleSheet.create({
     shadowOpacity: 0.07,
     shadowRadius: 10,
     elevation: 3,
+    marginTop: 4,
   },
   darkIconBg: {
     width: 52,
@@ -558,11 +583,10 @@ const S = StyleSheet.create({
     marginTop: 2,
   },
   smallRow: {
-    flexDirection: 'row',
     gap: 12,
+    marginTop: 4,
   },
   smallCard: {
-    flex: 1,
     borderRadius: 20,
     padding: 18,
     borderWidth: 1,
@@ -572,6 +596,8 @@ const S = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
     gap: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   smallIconBg: {
     width: 44,
@@ -581,16 +607,12 @@ const S = StyleSheet.create({
     justifyContent: 'center',
   },
   smallTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
   },
   smallSub: {
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  smallArrowWrap: {
-    alignSelf: 'flex-end',
-    marginTop: 4,
+    fontSize: 12,
+    lineHeight: 16,
   },
   version: {
     fontSize: 11,

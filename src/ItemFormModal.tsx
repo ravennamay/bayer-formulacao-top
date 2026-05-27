@@ -19,7 +19,7 @@ import type { ThemeColors } from './theme';
 import { useTheme } from './theme';
 import { ProductionItem, SCS, SITUATIONS, UNITS } from './types';
 
-// Product weights in kg per bag
+// Peso por bag em kg
 const PRODUCT_WEIGHTS: Record<string, number> = {
   UREIA: 700,
   TRIFLOXYSTROBIN: 500,
@@ -61,6 +61,7 @@ export default function ItemFormModal({ visible, initial, date, onClose, onSaved
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // ---------- Carrega produtos ----------
   useEffect(() => {
     let mounted = true;
 
@@ -68,7 +69,7 @@ export default function ItemFormModal({ visible, initial, date, onClose, onSaved
       api
         .get('/products')
         .then(r => {
-          if (mounted) setProducts(r.data);
+          if (mounted) setProducts(r.data || []);
         })
         .catch(() => {});
     }
@@ -78,6 +79,7 @@ export default function ItemFormModal({ visible, initial, date, onClose, onSaved
     };
   }, [visible]);
 
+  // ---------- Preenche / Reseta ----------
   useEffect(() => {
     if (!visible) return;
 
@@ -89,7 +91,7 @@ export default function ItemFormModal({ visible, initial, date, onClose, onSaved
       setQuantity(initial.quantity != null ? String(initial.quantity) : '');
       setSituation(initial.situation);
       setObservation(initial.observation || '');
-      calculateWeight(initial.product, initial.quantity || 1);
+      calculateWeight(initial.product, initial.quantity || 0);
     } else {
       setUnit(UNITS[0]);
       setSc(SCS[0]);
@@ -102,13 +104,17 @@ export default function ItemFormModal({ visible, initial, date, onClose, onSaved
     }
   }, [visible, initial]);
 
-  // Auto-calculate weight when quantity or product changes
+  // ---------- Auto cálculo de peso ----------
   useEffect(() => {
     if (product && quantity) {
-      const qty = Number(quantity);
+      const qty = Number(String(quantity).replace(',', '.'));
       if (!isNaN(qty)) {
         calculateWeight(product, qty);
+      } else {
+        setCalculatedWeight(0);
       }
+    } else {
+      setCalculatedWeight(0);
     }
   }, [product, quantity]);
 
@@ -127,7 +133,7 @@ export default function ItemFormModal({ visible, initial, date, onClose, onSaved
       return;
     }
 
-    const parsedQty = Number(quantity);
+    const parsedQty = Number(String(quantity).replace(',', '.'));
 
     if (isNaN(parsedQty) || parsedQty <= 0) {
       Alert.alert('Erro', 'Quantidade deve ser um número maior que zero');
@@ -164,7 +170,7 @@ export default function ItemFormModal({ visible, initial, date, onClose, onSaved
           ? (err as any).response.data.detail
           : 'Falha ao salvar';
 
-      Alert.alert('Erro', message);
+      Alert.alert('Erro', String(message));
     } finally {
       setSaving(false);
     }
@@ -189,7 +195,11 @@ export default function ItemFormModal({ visible, initial, date, onClose, onSaved
           </View>
 
           <ScrollView
-            contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 20 }}
+            contentContainerStyle={{
+              padding: 16,
+              gap: 14,
+              paddingBottom: 40,
+            }}
             keyboardShouldPersistTaps="handled"
           >
             {/* Unidade */}
@@ -242,10 +252,22 @@ export default function ItemFormModal({ visible, initial, date, onClose, onSaved
                         }}
                         style={[styles.suggestion, { borderBottomColor: colors.border }]}
                       >
-                        <Text style={{ color: colors.textPrimary, fontWeight: '500' }}>
+                        <Text
+                          style={{
+                            color: colors.textPrimary,
+                            fontWeight: '500',
+                          }}
+                        >
                           {p.name}
                         </Text>
-                        <Text style={{ color: colors.textTertiary, fontSize: 12 }}>{p.abbr}</Text>
+                        <Text
+                          style={{
+                            color: colors.textTertiary,
+                            fontSize: 12,
+                          }}
+                        >
+                          {p.abbr}
+                        </Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -283,6 +305,7 @@ export default function ItemFormModal({ visible, initial, date, onClose, onSaved
                   style={[
                     styles.input,
                     {
+                      flex: 1,
                       backgroundColor: colors.surfaceElevated,
                       borderColor: colors.border,
                       color: colors.textPrimary,
@@ -295,7 +318,7 @@ export default function ItemFormModal({ visible, initial, date, onClose, onSaved
               </View>
             </Field>
 
-            {/* Peso Automático */}
+            {/* Peso calculado */}
             {calculatedWeight > 0 && (
               <View
                 style={[
@@ -352,6 +375,9 @@ export default function ItemFormModal({ visible, initial, date, onClose, onSaved
                 style={[
                   styles.input,
                   {
+                    height: 80,
+                    textAlignVertical: 'top',
+                    paddingTop: 12,
                     backgroundColor: colors.surfaceElevated,
                     borderColor: colors.border,
                     color: colors.textPrimary,
@@ -360,7 +386,7 @@ export default function ItemFormModal({ visible, initial, date, onClose, onSaved
               />
             </Field>
 
-            {/* Save Button */}
+            {/* Botão Salvar */}
             <TouchableOpacity
               onPress={save}
               disabled={saving}
@@ -388,6 +414,7 @@ export default function ItemFormModal({ visible, initial, date, onClose, onSaved
   );
 }
 
+// ---------- Subcomponents ----------
 function Field({
   label,
   children,
@@ -449,6 +476,7 @@ function Chips({
   );
 }
 
+// ---------- Styles ----------
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
@@ -518,6 +546,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
     marginRight: 8,
+    marginHorizontal: 4,
     borderWidth: 1,
   },
 

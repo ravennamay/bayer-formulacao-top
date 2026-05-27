@@ -82,7 +82,7 @@ export const generateCSVContent = (
   // Add data rows
   rows.forEach(row => {
     const escapedRow = row.map(cell => {
-      const str = String(cell || '');
+      const str = String(cell ?? '');
       // Escape quotes and wrap in quotes if contains comma
       if (str.includes(',') || str.includes('"') || str.includes('\n')) {
         return `"${str.replace(/"/g, '""')}"`;

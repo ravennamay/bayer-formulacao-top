@@ -17,12 +17,15 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
+
 import { Link, useRouter } from 'expo-router';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import safeAsyncStorage from '../src/utils/safeAsyncStorage';
 
 import { useAuth } from '../src/auth';
+
 import { BAYER_LOGO_URL, useTheme } from '../src/theme';
 
 const REMEMBER_KEY = 'bayer_remember';
@@ -56,9 +59,9 @@ export default function Login() {
 
   const loadRememberData = async () => {
     try {
-      const rememberValue = await AsyncStorage.getItem(REMEMBER_KEY);
+      const rememberValue = await safeAsyncStorage.getItem(REMEMBER_KEY);
 
-      const savedEmail = await AsyncStorage.getItem(REMEMBER_EMAIL_KEY);
+      const savedEmail = await safeAsyncStorage.getItem(REMEMBER_EMAIL_KEY);
 
       const shouldRemember = rememberValue !== '0';
 
@@ -96,12 +99,12 @@ export default function Login() {
         await register(cleanEmail, password, name.trim());
       }
 
-      await AsyncStorage.setItem(REMEMBER_KEY, remember ? '1' : '0');
+      await safeAsyncStorage.setItem(REMEMBER_KEY, remember ? '1' : '0');
 
       if (remember) {
-        await AsyncStorage.setItem(REMEMBER_EMAIL_KEY, cleanEmail);
+        await safeAsyncStorage.setItem(REMEMBER_EMAIL_KEY, cleanEmail);
       } else {
-        await AsyncStorage.removeItem(REMEMBER_EMAIL_KEY);
+        await safeAsyncStorage.removeItem(REMEMBER_EMAIL_KEY);
       }
 
       router.replace('/(tabs)');
@@ -177,7 +180,7 @@ export default function Login() {
                   },
                 ]}
               >
-                Formulação
+                Preparação
               </Text>
 
               <Text

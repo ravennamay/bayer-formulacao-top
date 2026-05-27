@@ -186,7 +186,7 @@ export default function Planilha2Screen() {
       }
 
       const url = `${backend}/api/export/excel?date=${date}`;
-      const target = `${FileSystem.cacheDirectory}planilha_${date}.xlsx`;
+      const target = `${FileSystem.cacheDirectory ?? ''}planilha_${date}.xlsx`;
 
       const download = await FileSystem.downloadAsync(url, target, {
         headers: {
@@ -217,7 +217,7 @@ export default function Planilha2Screen() {
       );
 
       const filename = `Catalogo_Produtos_${new Date().toISOString().split('T')[0]}.csv`;
-      const filepath = `${FileSystem.documentDirectory}${filename}`;
+      const filepath = `${FileSystem.documentDirectory ?? ''}${filename}`;
 
       await FileSystem.writeAsStringAsync(filepath, csvContent);
 

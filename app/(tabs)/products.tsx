@@ -3,6 +3,7 @@ import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   ScrollView,
   StyleSheet,
@@ -12,37 +13,86 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { api } from '../../src/auth';
 import { useTheme } from '../../src/theme';
 
 type Product = {
-  id: string;
   name: string;
   abbr: string;
-  description: string;
-  ingredients: string[];
-  procedure: string;
-  category: string;
+  description?: string;
+  ingredients?: string[];
+  procedure?: string;
+  category?: string;
   weight?: number;
 };
 
+const FALLBACK_PRODUCTS: Product[] = [
+  {
+    name: 'VERANGO',
+    abbr: 'VER',
+    category: 'Fungicida',
+    description: 'Fungicida sistêmico para folhas',
+    ingredients: ['Trifloxystrobin', 'Fluopyram'],
+    procedure: 'Aplicar conforme recomendação técnica',
+    weight: 500,
+  },
+  {
+    name: 'FOX XPRO',
+    abbr: 'FXX',
+    category: 'Fungicida',
+    description: 'Fungicida tríplice ação',
+    ingredients: ['Trifloxystrobin', 'Protioconazole', 'Bixafen'],
+    procedure: 'Aplicar preventivamente',
+    weight: 500,
+  },
+  {
+    name: 'NATIVO',
+    abbr: 'NAT',
+    category: 'Fungicida',
+    description: 'Fungicida de contato e sistêmico',
+    ingredients: ['Trifloxystrobin', 'Tebuconazole'],
+    procedure: 'Pulverização uniforme',
+    weight: 500,
+  },
+];
+
 export default function ProductsScreen() {
   const { colors } = useTheme();
+
   const [search, setSearch] = useState('');
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>(FALLBACK_PRODUCTS);
   const [loading, setLoading] = useState(true);
+
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
   const [detailsVisible, setDetailsVisible] = useState(false);
   const [formVisible, setFormVisible] = useState(false);
+
   const [newProduct, setNewProduct] = useState<Partial<Product>>({});
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
+
     try {
+      console.log('Fetching /recipes');
+
       const r = await api.get('/recipes');
-      setProducts(r.data ?? []);
-    } catch (err) {
-      console.log('Error fetching products:', err);
+
+      console.log('RECIPES OK:', r.data);
+
+      if (Array.isArray(r.data) && r.data.length > 0) {
+        setProducts(r.data);
+      } else {
+        setProducts(FALLBACK_PRODUCTS);
+      }
+    } catch (err: any) {
+      console.log('RECIPES ERROR');
+      console.log('MESSAGE:', err?.message);
+      console.log('STATUS:', err?.response?.status);
+      console.log('DATA:', err?.response?.data);
+
+      setProducts(FALLBACK_PRODUCTS);
     } finally {
       setLoading(false);
     }
@@ -58,67 +108,99 @@ export default function ProductsScreen() {
 
   const filtered = useMemo(() => {
     if (!q) return products;
+
     return products.filter(p =>
-      `${p.name} ${p.abbr} ${p.description} ${p.category} ${(p.ingredients || []).join(' ')}`
+      `${p.name || ''} ${p.abbr || ''} ${p.description || ''} ${p.category || ''} ${(p.ingredients || []).join(' ')}`
         .toLowerCase()
         .includes(q)
     );
   }, [products, q]);
 
   const handleAddProduct = async () => {
-    if (!newProduct.name || !newProduct.abbr) return;
-
-    try {
-      await api.post('/recipes', newProduct);
-      await fetchProducts();
-      setFormVisible(false);
-      setNewProduct({});
-    } catch (err) {
-      console.log('Error adding product:', err);
+    if (!newProduct.name?.trim() || !newProduct.abbr?.trim()) {
+      Alert.alert('Erro', 'Nome e abreviação são obrigatórios');
+      return;
     }
+
+    const created: Product = {
+      name: newProduct.name.trim(),
+      abbr: newProduct.abbr.trim().toUpperCase(),
+      category: newProduct.category?.trim() || 'Geral',
+      description: newProduct.description?.trim() || '',
+      ingredients: [],
+      procedure: '',
+      weight: newProduct.weight,
+    };
+
+    setProducts(prev => [created, ...prev]);
+
+    setFormVisible(false);
+
+    setNewProduct({});
+
+    Alert.alert('Sucesso', 'Produto adicionado localmente');
   };
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.primary }]}>
-        <Text style={[styles.title, { color: '#fff' }]}>📦 Catálogo de Produtos</Text>
-        <Text style={[styles.subtitle, { color: '#ffffffCC' }]}>Todos os produtos disponíveis</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.title, { color: '#fff' }]}>📦 Catálogo de Produtos</Text>
+
+          <Text style={[styles.subtitle, { color: '#ffffffCC' }]}>
+            Todos os produtos disponíveis
+          </Text>
+        </View>
       </View>
 
       <View
-        style={[styles.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        style={[
+          styles.searchBox,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+          },
+        ]}
       >
         <Ionicons name="search" size={16} color={colors.textTertiary} />
+
         <TextInput
           value={search}
           onChangeText={setSearch}
           placeholder="Buscar produto..."
           placeholderTextColor={colors.textTertiary}
-          style={[styles.searchInput, { color: colors.textPrimary }]}
+          style={[
+            styles.searchInput,
+            {
+              color: colors.textPrimary,
+            },
+          ]}
         />
-        {search && (
+
+        {!!search && (
           <TouchableOpacity onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={16} color={colors.textTertiary} />
+            <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
           </TouchableOpacity>
         )}
       </View>
 
       {loading ? (
         <View style={styles.empty}>
-          <ActivityIndicator color={colors.primary} size="large" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : filtered.length === 0 ? (
         <View style={styles.empty}>
-          <Ionicons name="inbox-outline" size={48} color={colors.textTertiary} />
+          <Ionicons name="inbox-outline" size={52} color={colors.textTertiary} />
+
           <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
             Nenhum produto encontrado
           </Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="always">
           {filtered.map(product => (
             <TouchableOpacity
-              key={product.id}
+              key={`${product.name}-${product.abbr}`}
               style={[
                 styles.productCard,
                 {
@@ -142,21 +224,49 @@ export default function ProductsScreen() {
                         },
                       ]}
                     >
-                      <Text style={{ color: colors.primary, fontSize: 10, fontWeight: '700' }}>
+                      <Text
+                        style={{
+                          color: colors.primary,
+                          fontSize: 10,
+                          fontWeight: '700',
+                        }}
+                      >
                         {product.category || 'Geral'}
                       </Text>
                     </View>
                   </View>
-                  <Text style={[styles.productName, { color: colors.textPrimary }]}>
+
+                  <Text
+                    style={[
+                      styles.productName,
+                      {
+                        color: colors.textPrimary,
+                      },
+                    ]}
+                  >
                     {product.name}
                   </Text>
-                  <Text style={[styles.productAbbr, { color: colors.textSecondary }]}>
+
+                  <Text
+                    style={[
+                      styles.productAbbr,
+                      {
+                        color: colors.textSecondary,
+                      },
+                    ]}
+                  >
                     {product.abbr}
                   </Text>
-                  {product.description && (
+
+                  {!!product.description && (
                     <Text
-                      style={[styles.productDesc, { color: colors.textTertiary }]}
                       numberOfLines={2}
+                      style={[
+                        styles.productDesc,
+                        {
+                          color: colors.textTertiary,
+                        },
+                      ]}
                     >
                       {product.description}
                     </Text>
@@ -164,7 +274,7 @@ export default function ProductsScreen() {
                 </View>
 
                 <View style={styles.productMeta}>
-                  {product.weight && (
+                  {!!product.weight && (
                     <View
                       style={[
                         styles.weightBadge,
@@ -173,11 +283,18 @@ export default function ProductsScreen() {
                         },
                       ]}
                     >
-                      <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '700' }}>
+                      <Text
+                        style={{
+                          color: '#10B981',
+                          fontSize: 12,
+                          fontWeight: '700',
+                        }}
+                      >
                         {product.weight}kg
                       </Text>
                     </View>
                   )}
+
                   <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
                 </View>
               </View>
@@ -187,7 +304,12 @@ export default function ProductsScreen() {
       )}
 
       <TouchableOpacity
-        style={[styles.fab, { backgroundColor: colors.primary }]}
+        style={[
+          styles.fab,
+          {
+            backgroundColor: colors.primary,
+          },
+        ]}
         onPress={() => {
           setNewProduct({});
           setFormVisible(true);
@@ -196,13 +318,26 @@ export default function ProductsScreen() {
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
 
-      <Modal visible={detailsVisible} animationType="slide" transparent={false}>
+      {/* DETAILS MODAL */}
+
+      <Modal visible={detailsVisible} animationType="slide">
         <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
           <View style={[styles.header, { backgroundColor: colors.primary }]}>
-            <TouchableOpacity onPress={() => setDetailsVisible(false)} hitSlop={10}>
+            <TouchableOpacity onPress={() => setDetailsVisible(false)}>
               <Ionicons name="chevron-back" size={28} color="#fff" />
             </TouchableOpacity>
-            <Text style={[styles.title, { color: '#fff', flex: 1, marginLeft: 12 }]}>Detalhes</Text>
+
+            <Text
+              style={[
+                styles.title,
+                {
+                  color: '#fff',
+                  marginLeft: 12,
+                },
+              ]}
+            >
+              Detalhes
+            </Text>
           </View>
 
           {selectedProduct && (
@@ -210,54 +345,94 @@ export default function ProductsScreen() {
               <View
                 style={[
                   styles.detailsCard,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                  },
                 ]}
               >
-                <View style={styles.badgeRow}>
-                  <View style={[styles.categoryBadge, { backgroundColor: colors.primary + '22' }]}>
-                    <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '700' }}>
-                      {selectedProduct.category || 'Geral'}
-                    </Text>
-                  </View>
-                  {selectedProduct.weight && (
-                    <View style={[styles.weightBadge, { backgroundColor: '#10B98122' }]}>
-                      <Text style={{ color: '#10B981', fontSize: 11, fontWeight: '700' }}>
-                        {selectedProduct.weight}kg
-                      </Text>
-                    </View>
-                  )}
-                </View>
-
-                <Text style={[styles.detailsTitle, { color: colors.textPrimary }]}>
+                <Text
+                  style={[
+                    styles.detailsTitle,
+                    {
+                      color: colors.textPrimary,
+                    },
+                  ]}
+                >
                   {selectedProduct.name}
                 </Text>
 
-                <Text style={[styles.detailsSubtitle, { color: colors.textSecondary }]}>
+                <Text
+                  style={[
+                    styles.detailsSubtitle,
+                    {
+                      color: colors.textSecondary,
+                    },
+                  ]}
+                >
                   {selectedProduct.abbr}
                 </Text>
 
-                <View style={[styles.detailsDivider, { backgroundColor: colors.border }]} />
-
-                {selectedProduct.description && (
+                {!!selectedProduct.description && (
                   <View style={styles.detailsSection}>
-                    <Text style={[styles.detailsLabel, { color: colors.textTertiary }]}>
-                      Descrição
+                    <Text
+                      style={[
+                        styles.detailsLabel,
+                        {
+                          color: colors.textTertiary,
+                        },
+                      ]}
+                    >
+                      DESCRIÇÃO
                     </Text>
-                    <Text style={[styles.detailsText, { color: colors.textPrimary }]}>
+
+                    <Text
+                      style={[
+                        styles.detailsText,
+                        {
+                          color: colors.textPrimary,
+                        },
+                      ]}
+                    >
                       {selectedProduct.description}
                     </Text>
                   </View>
                 )}
 
-                {selectedProduct.ingredients && selectedProduct.ingredients.length > 0 && (
+                {!!selectedProduct.ingredients?.length && (
                   <View style={styles.detailsSection}>
-                    <Text style={[styles.detailsLabel, { color: colors.textTertiary }]}>
-                      Ingredientes
+                    <Text
+                      style={[
+                        styles.detailsLabel,
+                        {
+                          color: colors.textTertiary,
+                        },
+                      ]}
+                    >
+                      INGREDIENTES
                     </Text>
+
                     {selectedProduct.ingredients.map((ing, idx) => (
-                      <View key={idx} style={styles.ingredientRow}>
-                        <Text style={[styles.ingredientBullet, { color: colors.primary }]}>•</Text>
-                        <Text style={[styles.ingredientText, { color: colors.textPrimary }]}>
+                      <View key={`${ing}-${idx}`} style={styles.ingredientRow}>
+                        <Text
+                          style={[
+                            styles.ingredientBullet,
+                            {
+                              color: colors.primary,
+                            },
+                          ]}
+                        >
+                          •
+                        </Text>
+
+                        <Text
+                          style={[
+                            styles.ingredientText,
+                            {
+                              color: colors.textPrimary,
+                            },
+                          ]}
+                        >
                           {ing}
                         </Text>
                       </View>
@@ -265,12 +440,27 @@ export default function ProductsScreen() {
                   </View>
                 )}
 
-                {selectedProduct.procedure && (
+                {!!selectedProduct.procedure && (
                   <View style={styles.detailsSection}>
-                    <Text style={[styles.detailsLabel, { color: colors.textTertiary }]}>
-                      Procedimento
+                    <Text
+                      style={[
+                        styles.detailsLabel,
+                        {
+                          color: colors.textTertiary,
+                        },
+                      ]}
+                    >
+                      PROCEDIMENTO
                     </Text>
-                    <Text style={[styles.detailsText, { color: colors.textPrimary }]}>
+
+                    <Text
+                      style={[
+                        styles.detailsText,
+                        {
+                          color: colors.textPrimary,
+                        },
+                      ]}
+                    >
                       {selectedProduct.procedure}
                     </Text>
                   </View>
@@ -281,13 +471,24 @@ export default function ProductsScreen() {
         </SafeAreaView>
       </Modal>
 
-      <Modal visible={formVisible} animationType="slide" transparent={false}>
+      {/* FORM MODAL */}
+
+      <Modal visible={formVisible} animationType="slide">
         <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
           <View style={[styles.header, { backgroundColor: colors.primary }]}>
-            <TouchableOpacity onPress={() => setFormVisible(false)} hitSlop={10}>
+            <TouchableOpacity onPress={() => setFormVisible(false)}>
               <Ionicons name="chevron-back" size={28} color="#fff" />
             </TouchableOpacity>
-            <Text style={[styles.title, { color: '#fff', flex: 1, marginLeft: 12 }]}>
+
+            <Text
+              style={[
+                styles.title,
+                {
+                  color: '#fff',
+                  marginLeft: 12,
+                },
+              ]}
+            >
               Novo Produto
             </Text>
           </View>
@@ -295,106 +496,145 @@ export default function ProductsScreen() {
           <ScrollView contentContainerStyle={styles.formContent}>
             <View style={styles.formGroup}>
               <Text style={[styles.formLabel, { color: colors.textPrimary }]}>Nome</Text>
+
               <TextInput
+                value={newProduct.name || ''}
+                onChangeText={v =>
+                  setNewProduct(prev => ({
+                    ...prev,
+                    name: v,
+                  }))
+                }
+                placeholder="Ex: FOX XPRO"
+                placeholderTextColor={colors.textTertiary}
                 style={[
                   styles.formInput,
                   {
                     backgroundColor: colors.surface,
-                    color: colors.textPrimary,
                     borderColor: colors.border,
+                    color: colors.textPrimary,
                   },
                 ]}
-                placeholder="Ex: FOX XPRO"
-                placeholderTextColor={colors.textTertiary}
-                value={newProduct.name || ''}
-                onChangeText={v => setNewProduct({ ...newProduct, name: v })}
               />
             </View>
 
             <View style={styles.formGroup}>
               <Text style={[styles.formLabel, { color: colors.textPrimary }]}>Abreviação</Text>
+
               <TextInput
+                value={newProduct.abbr || ''}
+                onChangeText={v =>
+                  setNewProduct(prev => ({
+                    ...prev,
+                    abbr: v,
+                  }))
+                }
+                placeholder="Ex: FXX"
+                placeholderTextColor={colors.textTertiary}
                 style={[
                   styles.formInput,
                   {
                     backgroundColor: colors.surface,
-                    color: colors.textPrimary,
                     borderColor: colors.border,
+                    color: colors.textPrimary,
                   },
                 ]}
-                placeholder="Ex: FOX"
-                placeholderTextColor={colors.textTertiary}
-                value={newProduct.abbr || ''}
-                onChangeText={v => setNewProduct({ ...newProduct, abbr: v })}
               />
             </View>
 
             <View style={styles.formGroup}>
               <Text style={[styles.formLabel, { color: colors.textPrimary }]}>Categoria</Text>
+
               <TextInput
+                value={newProduct.category || ''}
+                onChangeText={v =>
+                  setNewProduct(prev => ({
+                    ...prev,
+                    category: v,
+                  }))
+                }
+                placeholder="Ex: Fungicida"
+                placeholderTextColor={colors.textTertiary}
                 style={[
                   styles.formInput,
                   {
                     backgroundColor: colors.surface,
-                    color: colors.textPrimary,
                     borderColor: colors.border,
+                    color: colors.textPrimary,
                   },
                 ]}
-                placeholder="Ex: Herbicida"
-                placeholderTextColor={colors.textTertiary}
-                value={newProduct.category || ''}
-                onChangeText={v => setNewProduct({ ...newProduct, category: v })}
               />
             </View>
 
             <View style={styles.formGroup}>
               <Text style={[styles.formLabel, { color: colors.textPrimary }]}>Peso (kg)</Text>
+
               <TextInput
+                value={newProduct.weight ? String(newProduct.weight) : ''}
+                onChangeText={v =>
+                  setNewProduct(prev => ({
+                    ...prev,
+                    weight: v ? parseFloat(v) : undefined,
+                  }))
+                }
+                keyboardType="decimal-pad"
+                placeholder="Ex: 500"
+                placeholderTextColor={colors.textTertiary}
                 style={[
                   styles.formInput,
                   {
                     backgroundColor: colors.surface,
-                    color: colors.textPrimary,
                     borderColor: colors.border,
+                    color: colors.textPrimary,
                   },
                 ]}
-                placeholder="Ex: 25"
-                placeholderTextColor={colors.textTertiary}
-                value={newProduct.weight ? String(newProduct.weight) : ''}
-                onChangeText={v =>
-                  setNewProduct({ ...newProduct, weight: v ? parseFloat(v) : undefined })
-                }
-                keyboardType="decimal-pad"
               />
             </View>
 
             <View style={styles.formGroup}>
               <Text style={[styles.formLabel, { color: colors.textPrimary }]}>Descrição</Text>
+
               <TextInput
+                value={newProduct.description || ''}
+                onChangeText={v =>
+                  setNewProduct(prev => ({
+                    ...prev,
+                    description: v,
+                  }))
+                }
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+                placeholder="Descrição do produto"
+                placeholderTextColor={colors.textTertiary}
                 style={[
                   styles.formInput,
                   styles.formTextArea,
                   {
                     backgroundColor: colors.surface,
-                    color: colors.textPrimary,
                     borderColor: colors.border,
+                    color: colors.textPrimary,
                   },
                 ]}
-                placeholder="Descrição do produto"
-                placeholderTextColor={colors.textTertiary}
-                value={newProduct.description || ''}
-                onChangeText={v => setNewProduct({ ...newProduct, description: v })}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
               />
             </View>
 
             <TouchableOpacity
-              style={[styles.submitBtn, { backgroundColor: colors.primary }]}
+              style={[
+                styles.submitBtn,
+                {
+                  backgroundColor: colors.primary,
+                },
+              ]}
               onPress={handleAddProduct}
             >
-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>
+              <Text
+                style={{
+                  color: '#fff',
+                  fontSize: 16,
+                  fontWeight: '700',
+                }}
+              >
                 Adicionar Produto
               </Text>
             </TouchableOpacity>
@@ -424,6 +664,7 @@ const styles = StyleSheet.create({
 
   subtitle: {
     fontSize: 12,
+    marginTop: 4,
   },
 
   searchBox: {
@@ -446,7 +687,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 12,
     paddingBottom: 100,
-    gap: 10,
   },
 
   productCard: {
@@ -522,13 +762,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
   },
 
   detailsContent: {
-    paddingHorizontal: 16,
+    padding: 16,
     paddingBottom: 32,
   },
 
@@ -536,41 +773,32 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     padding: 16,
-    marginTop: 16,
   },
 
   detailsTitle: {
     fontSize: 18,
     fontWeight: '800',
-    marginTop: 12,
     marginBottom: 4,
   },
 
   detailsSubtitle: {
     fontSize: 13,
-    marginBottom: 12,
-  },
-
-  detailsDivider: {
-    height: 1,
-    marginVertical: 12,
+    marginBottom: 16,
   },
 
   detailsSection: {
-    marginBottom: 16,
+    marginBottom: 18,
   },
 
   detailsLabel: {
     fontSize: 11,
     fontWeight: '700',
-    textTransform: 'uppercase',
     marginBottom: 8,
-    letterSpacing: 0.5,
   },
 
   detailsText: {
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: 14,
+    lineHeight: 22,
   },
 
   ingredientRow: {
@@ -585,13 +813,13 @@ const styles = StyleSheet.create({
   },
 
   ingredientText: {
-    fontSize: 13,
     flex: 1,
+    fontSize: 13,
   },
 
   formContent: {
     padding: 16,
-    paddingBottom: 32,
+    paddingBottom: 40,
   },
 
   formGroup: {
@@ -613,14 +841,14 @@ const styles = StyleSheet.create({
   },
 
   formTextArea: {
-    paddingVertical: 12,
+    minHeight: 100,
   },
 
   submitBtn: {
-    height: 48,
-    borderRadius: 10,
+    height: 50,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 16,
+    marginTop: 8,
   },
 });

@@ -590,7 +590,7 @@ export default function GuideScreen() {
                         </Text>
                       </View>
                       <View style={styles.modalStat}>
-                        <Ionicons name="signal-outline" size={16} color={colors.primary} />
+                        <Ionicons name="stats-chart-outline" size={16} color={colors.primary} />
                         <Text style={[styles.modalStatText, { color: colors.textSecondary }]}>
                           {selectedItem?.level}
                         </Text>

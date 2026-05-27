@@ -521,22 +521,54 @@ async def get_current_user(
 # ROUTES
 # =========================================================
 
+# Health check público (sem autenticação) - DEVE estar ANTES da API
+@app.get("/api/health")
+async def health_public():
+    """
+    Health check endpoint público para monitoramento do app.
+    Não requer autenticação.
+    """
+    try:
+        # Verificar se banco de dados está conectado
+        await db.command("ping")
+
+        return {
+            "status": "healthy",
+            "service": "Bayer Production Control",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "version": "2.0.0",
+            "database": "connected",
+        }
+    except Exception as e:
+        logger.error("Health check falhou: %s", str(e))
+        return {
+            "status": "degraded",
+            "service": "Bayer Production Control",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "version": "2.0.0",
+            "database": "disconnected",
+            "error": str(e),
+        }
+
 
 @api_router.get("/")
 async def root():
     return {
         "service": "Bayer Production Control",
         "ok": True,
+        "version": "2.0.0",
     }
 
 
 @api_router.get("/health")
 async def health():
+    """Health check endpoint para monitoramento 24/7"""
     return {
-        "status": "ok",
-        "timestamp": datetime.now(
-            timezone.utc
-        ),
+        "status": "healthy",
+        "service": "Bayer Production Control",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "version": "2.0.0",
+        "database": "connected",
     }
 
 
