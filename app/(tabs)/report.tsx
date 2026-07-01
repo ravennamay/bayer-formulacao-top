@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
@@ -40,7 +41,7 @@ const buildLast14Days = (): string[] => {
 };
 
 export default function ReportScreen() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const [date, setDate] = useState(todayISO());
   const [text, setText] = useState('');
   const [count, setCount] = useState(0);
@@ -98,32 +99,40 @@ export default function ReportScreen() {
 
   const dates = buildLast14Days();
 
+  const previewBg = isDark ? '#0D1C29' : '#F0F8FF';
+  const previewHeaderBg = isDark ? '#0F2030' : '#E8F4FD';
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <View>
-            <Text style={[styles.title, { color: colors.textPrimary }]}>Relatório WhatsApp</Text>
-            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-              {formatDateLabel(date)} · {count} {count === 1 ? 'item' : 'itens'}
-            </Text>
+        {/* Header — V3 style (icon box + title) */}
+        <View style={[styles.header, { borderBottomColor: colors.border, backgroundColor: colors.background }]}>
+          <View style={styles.headerBottom}>
+            <View style={styles.headerLeft}>
+              <View style={[styles.whatsIconBox, { backgroundColor: colors.whatsappSubtle, borderColor: colors.whatsappBorder }]}>
+                <Ionicons name="logo-whatsapp" size={20} color={colors.whatsapp} />
+              </View>
+              <View>
+                <Text style={[styles.title, { color: colors.textPrimary }]}>Relatório de Turno</Text>
+                <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                  {formatDateLabel(date)} · {count} {count === 1 ? 'item' : 'itens'}
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              testID="refresh-report"
+              onPress={generate}
+              style={[styles.iconBtn, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
+            >
+              <Ionicons name="refresh" size={18} color={colors.primary} />
+            </TouchableOpacity>
           </View>
-
-          <TouchableOpacity
-            testID="refresh-report"
-            onPress={generate}
-            style={[
-              styles.iconBtn,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-          >
-            <Ionicons name="refresh" size={18} color={colors.textPrimary} />
-          </TouchableOpacity>
         </View>
 
+        {/* Date strip — V1 rounded chips, WhatsApp green when active */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -142,27 +151,15 @@ export default function ReportScreen() {
                 style={[
                   styles.dateChip,
                   {
-                    backgroundColor: active ? colors.primary : colors.surface,
-                    borderColor: active ? colors.primary : colors.border,
+                    backgroundColor: active ? colors.whatsapp : colors.surface,
+                    borderColor: active ? colors.whatsapp : colors.border,
                   },
                 ]}
               >
-                <Text
-                  style={{
-                    color: active ? '#fff' : colors.textTertiary,
-                    fontSize: 11,
-                    fontWeight: '600',
-                  }}
-                >
+                <Text style={{ color: active ? '#0B1620' : colors.textTertiary, fontSize: 11, fontWeight: '600' }}>
                   {dt.toLocaleDateString('pt-BR', { weekday: 'short' }).slice(0, 3).toUpperCase()}
                 </Text>
-                <Text
-                  style={{
-                    color: active ? '#fff' : colors.textPrimary,
-                    fontSize: 18,
-                    fontWeight: '700',
-                  }}
-                >
+                <Text style={{ color: active ? '#0B1620' : colors.textPrimary, fontSize: 18, fontWeight: '700' }}>
                   {dd}
                 </Text>
               </TouchableOpacity>
@@ -170,9 +167,8 @@ export default function ReportScreen() {
           })}
         </ScrollView>
 
-        <View
-          style={[styles.obsRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
-        >
+        {/* Obs row — V1: taller, more rounded */}
+        <View style={[styles.obsRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Ionicons name="create-outline" size={16} color={colors.textTertiary} />
           <TextInput
             testID="extra-obs"
@@ -185,22 +181,13 @@ export default function ReportScreen() {
           />
         </View>
 
+        {/* Preview card — V1: darker bg, bigger radius, dot indicator */}
         <ScrollView contentContainerStyle={styles.scrollBody} keyboardShouldPersistTaps="handled">
-          <View
-            style={[
-              styles.preview,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-          >
-            <View style={[styles.previewHeader, { borderBottomColor: colors.border }]}>
-              <Ionicons name="logo-whatsapp" size={16} color={colors.whatsapp} />
-              <Text
-                style={{
-                  color: colors.textSecondary,
-                  fontSize: 12,
-                  fontWeight: '700',
-                }}
-              >
+          <View style={[styles.preview, { backgroundColor: previewBg, borderColor: colors.border }]}>
+            <View style={[styles.previewHeader, { backgroundColor: previewHeaderBg, borderBottomColor: colors.border }]}>
+              <View style={styles.previewDot} />
+              <Ionicons name="logo-whatsapp" size={15} color={colors.whatsapp} />
+              <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: '700', letterSpacing: 0.8 }}>
                 PRÉVIA DA MENSAGEM
               </Text>
             </View>
@@ -210,43 +197,24 @@ export default function ReportScreen() {
                 <ActivityIndicator color={colors.primary} />
               </View>
             ) : text ? (
-              <Text
-                testID="report-text"
-                style={[styles.previewText, { color: colors.textPrimary }]}
-              >
+              <Text testID="report-text" style={[styles.previewText, { color: colors.textPrimary }]}>
                 {text}
               </Text>
             ) : (
-              <Text
-                style={{
-                  color: colors.textTertiary,
-                  padding: 16,
-                  fontStyle: 'italic',
-                }}
-              >
+              <Text style={{ color: colors.textTertiary, padding: 16, fontStyle: 'italic' }}>
                 Nenhum item para esta data.
               </Text>
             )}
           </View>
         </ScrollView>
 
-        <View
-          style={[
-            styles.actions,
-            { backgroundColor: colors.background, borderTopColor: colors.border },
-          ]}
-        >
+        {/* Actions — V1: taller buttons, more rounded, gradient on WhatsApp */}
+        <View style={[styles.actions, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
           <TouchableOpacity
             testID="copy-report"
             onPress={copy}
             disabled={!text}
-            style={[
-              styles.btn,
-              {
-                backgroundColor: colors.surface,
-                opacity: text ? 1 : 0.5,
-              },
-            ]}
+            style={[styles.btnCopy, { backgroundColor: colors.surface, borderColor: colors.border, opacity: text ? 1 : 0.5 }]}
           >
             <Ionicons name="copy-outline" size={18} color={colors.textPrimary} />
             <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>Copiar</Text>
@@ -256,17 +224,17 @@ export default function ReportScreen() {
             testID="share-whatsapp"
             onPress={shareWhats}
             disabled={!text}
-            style={[
-              styles.btn,
-              {
-                backgroundColor: colors.whatsapp,
-                flex: 1,
-                opacity: text ? 1 : 0.5,
-              },
-            ]}
+            style={[styles.btnWhatsWrap, { opacity: text ? 1 : 0.5 }]}
           >
-            <Ionicons name="logo-whatsapp" size={18} color="#fff" />
-            <Text style={{ color: '#fff', fontWeight: '700' }}>Enviar no WhatsApp</Text>
+            <LinearGradient
+              colors={['#25D366', '#128C7E']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.btnWhats}
+            >
+              <Ionicons name="logo-whatsapp" size={18} color="#fff" />
+              <Text style={{ color: '#fff', fontWeight: '700' }}>Enviar no WhatsApp</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -276,17 +244,33 @@ export default function ReportScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
+
   header: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingTop: 16,
+    paddingBottom: 14,
     borderBottomWidth: 1,
   },
-  title: { fontSize: 22, fontWeight: '800' },
-  subtitle: { fontSize: 13, marginTop: 2 },
+  headerBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  whatsIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  title: { fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
+  subtitle: { fontSize: 12, marginTop: 1 },
   iconBtn: {
     width: 38,
     height: 38,
@@ -295,29 +279,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
   },
+
   dateStrip: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
   dateChip: {
     width: 50,
     paddingVertical: 8,
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: 'center',
     borderWidth: 1,
     gap: 2,
   },
+
   obsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 12,
-    height: 44,
-    borderRadius: 10,
-    borderWidth: 1,
+    paddingHorizontal: 14,
+    height: 46,
+    borderRadius: 14,
+    borderWidth: 1.5,
     marginHorizontal: 16,
     marginBottom: 12,
   },
   obsInput: { flex: 1, fontSize: 14 },
+
   scrollBody: { paddingHorizontal: 16, paddingBottom: 16 },
-  preview: { borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
+  preview: { borderRadius: 18, borderWidth: 1.5, overflow: 'hidden' },
   previewHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -325,26 +312,45 @@ const styles = StyleSheet.create({
     padding: 12,
     borderBottomWidth: 1,
   },
+  previewDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#25D366',
+  },
   previewText: {
     padding: 16,
     fontSize: 14,
     lineHeight: 22,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
+
   actions: {
     flexDirection: 'row',
     gap: 8,
     padding: 16,
     borderTopWidth: 1,
   },
-  btn: {
+  btnCopy: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    height: 50,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 1,
+    height: 52,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    borderWidth: 1.5,
+  },
+  btnWhatsWrap: {
+    flex: 1,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  btnWhats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 52,
   },
 });
