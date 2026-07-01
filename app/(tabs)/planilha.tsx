@@ -15,7 +15,9 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
+import { Swipeable } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import * as FileSystem from 'expo-file-system';
@@ -41,6 +43,7 @@ const PRODUCT_COLORS: Record<string, string> = {
   'FOX XPRO': '#00BCFF',
   NATIVO: '#89D329',
   'FOX PRO': '#00BCFF',
+  'FOX SUPRA': '#22C55E',
   CURBIX: '#EC4899',
   CONNECT: '#F59E0B',
   BULLDOCK: '#8B5CF6',
@@ -51,6 +54,13 @@ const PRODUCT_COLORS: Record<string, string> = {
   'SPHERE MAX': '#6366F1',
   FINISH: '#A78BFA',
   SOBERAN: '#14B8A6',
+  CROPSTAR: '#D97706',
+  'SIVANTO PRIME': '#7C3AED',
+  UNIVERSAL: '#64748B',
+  MONCEREM: '#DB2777',
+  GAUCHO: '#EA580C',
+  VERANGO: '#0891B2',
+  MYTHOS: '#84CC16',
 };
 
 export default function Planilha2Screen() {
@@ -127,6 +137,14 @@ export default function Planilha2Screen() {
     }
   };
 
+  const sitCounts = useMemo(() => {
+    const counts: Record<string, number> = { Todos: items.length };
+    for (const sit of SITUATIONS) {
+      counts[sit] = items.filter(i => i.situation === sit).length;
+    }
+    return counts;
+  }, [items]);
+
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
 
@@ -178,33 +196,40 @@ export default function Planilha2Screen() {
 
   const exportExcel = async () => {
     try {
-      const backend = process.env.EXPO_PUBLIC_BACKEND_URL;
-
-      if (!backend) {
-        Alert.alert('Erro', 'Backend não configurado.');
-        return;
-      }
-
+      const backend = Platform.OS === 'web' && typeof window !== 'undefined'
+        ? window.location.origin
+        : (process.env.EXPO_PUBLIC_BACKEND_URL ?? '').replace(/\/$/, '');
       const url = `${backend}/api/export/excel?date=${date}`;
-      const target = `${FileSystem.cacheDirectory ?? ''}planilha_${date}.xlsx`;
 
-      const download = await FileSystem.downloadAsync(url, target, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(download.uri, {
-          mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          dialogTitle: 'Exportar Excel',
-        });
+      if (Platform.OS === 'web') {
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        const objUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = objUrl;
+        a.download = `bayer_planilha_${date}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(objUrl);
       } else {
-        Alert.alert('Arquivo salvo', download.uri);
+        const target = `${FileSystem.cacheDirectory ?? ''}planilha_${date}.xlsx`;
+        const download = await FileSystem.downloadAsync(url, target, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(download.uri, {
+            mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            dialogTitle: 'Exportar Excel',
+          });
+        } else {
+          Alert.alert('Arquivo salvo', download.uri);
+        }
       }
     } catch (error) {
       console.error(error);
-      Alert.alert('Erro', 'Falha ao exportar Excel.');
+      Alert.alert('Erro', 'Falha ao exportar Excel. Verifique se há itens na planilha.');
     }
   };
 
@@ -254,7 +279,39 @@ export default function Planilha2Screen() {
     const productColor = getProductColor(item.product);
     const availabilityColor = getAvailabilityColor(item.material_status || '');
 
+    const renderLeftActions = () => (
+      <TouchableOpacity
+        style={[styles.swipeAction, styles.swipeEditAction]}
+        onPress={() => {
+          setEditing(item);
+          setFormVisible(true);
+        }}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="create" size={22} color="#000" />
+        <Text style={[styles.swipeActionLabel, { color: '#000' }]}>Editar</Text>
+      </TouchableOpacity>
+    );
+
+    const renderRightActions = () => (
+      <TouchableOpacity
+        style={[styles.swipeAction, styles.swipeDeleteAction]}
+        onPress={() => handleDelete(item.id)}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="trash" size={22} color="#FFF" />
+        <Text style={[styles.swipeActionLabel, { color: '#FFF' }]}>Excluir</Text>
+      </TouchableOpacity>
+    );
+
     return (
+      <Swipeable
+        renderLeftActions={renderLeftActions}
+        renderRightActions={renderRightActions}
+        overshootLeft={false}
+        overshootRight={false}
+        friction={2}
+      >
       <View
         style={[
           styles.card,
@@ -265,149 +322,105 @@ export default function Planilha2Screen() {
           },
         ]}
       >
-        <View style={styles.cardHeader}>
-          <View
-            style={[
-              styles.locationPill,
-              {
-                backgroundColor: colors.surfaceElevated,
-              },
-            ]}
-          >
-            <Ionicons name="business-outline" size={12} color={colors.textTertiary} />
-            <Text
-              style={[
-                styles.locationText,
-                {
-                  color: colors.textSecondary,
-                },
-              ]}
-            >
-              {item.unit} • {item.sc}
-            </Text>
-          </View>
+        {/* Left accent strip */}
+        <View style={[styles.cardAccent, { backgroundColor: productColor }]} />
 
-          <View style={styles.actions}>
-            <TouchableOpacity
-              style={[
-                styles.actionBtn,
-                {
-                  backgroundColor: colors.surfaceElevated,
-                },
-              ]}
-              onPress={() => {
-                setEditing(item);
-                setFormVisible(true);
-              }}
-            >
-              <Ionicons name="create-outline" size={18} color={colors.textSecondary} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.actionBtn,
-                {
-                  backgroundColor: colors.danger + '20',
-                },
-              ]}
-              onPress={() => handleDelete(item.id)}
-            >
-              <Ionicons name="trash-outline" size={18} color={colors.danger} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.cardBody}>
-          <View
-            style={[
-              styles.productBadge,
-              {
-                backgroundColor: productColor,
-              },
-            ]}
-          >
-            <Text style={styles.productBadgeText}>
-              {item.product_abbr || item.product.slice(0, 3).toUpperCase()}
-            </Text>
-          </View>
-
-          <View style={{ flex: 1 }}>
-            <Text
-              numberOfLines={1}
-              style={[
-                styles.productName,
-                {
-                  color: colors.textPrimary,
-                },
-              ]}
-            >
-              {item.product}
-            </Text>
-
-            <Text
-              style={[
-                styles.batchText,
-                {
-                  color: colors.textSecondary,
-                },
-              ]}
-            >
-              Lote {formatBatchWithYear(item.batch)}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.statusRow}>
-          <View style={styles.statusWrapper}>
-            <StatusPill label={item.situation} />
-          </View>
-
-          {item.material_status && (
+        <View style={styles.cardInner}>
+          <View style={styles.cardHeader}>
             <View
               style={[
-                styles.availabilityBadge,
+                styles.locationPill,
+                { backgroundColor: colors.surfaceElevated },
+              ]}
+            >
+              <Ionicons name="business-outline" size={12} color={colors.textTertiary} />
+              <Text style={[styles.locationText, { color: colors.textSecondary }]}>
+                {item.unit} • {item.sc}
+              </Text>
+            </View>
+
+            <View style={styles.actions}>
+              <TouchableOpacity
+                style={[styles.actionBtn, { backgroundColor: colors.surfaceElevated }]}
+                onPress={() => {
+                  setEditing(item);
+                  setFormVisible(true);
+                }}
+              >
+                <Ionicons name="create-outline" size={18} color={colors.textSecondary} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionBtn, { backgroundColor: colors.danger + '20' }]}
+                onPress={() => handleDelete(item.id)}
+              >
+                <Ionicons name="trash-outline" size={18} color={colors.danger} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.cardBody}>
+            <View
+              style={[
+                styles.productBadge,
                 {
-                  backgroundColor: availabilityColor + '15',
-                  borderColor: availabilityColor + '40',
+                  backgroundColor: productColor + '22',
+                  borderWidth: 1.5,
+                  borderColor: productColor + '66',
                 },
               ]}
             >
+              <Text style={[styles.productBadgeText, { color: productColor }]}>
+                {item.product_abbr || item.product.slice(0, 3).toUpperCase()}
+              </Text>
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <Text numberOfLines={1} style={[styles.productName, { color: colors.textPrimary }]}>
+                {item.product}
+              </Text>
+              <Text style={[styles.batchText, { color: colors.textSecondary }]}>
+                Lote {formatBatchWithYear(item.batch)}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.statusRow}>
+            <View style={styles.statusWrapper}>
+              <StatusPill label={item.situation} />
+            </View>
+
+            {item.material_status && (
               <View
                 style={[
-                  styles.availabilityDot,
+                  styles.availabilityBadge,
                   {
-                    backgroundColor: availabilityColor,
-                  },
-                ]}
-              />
-              <Text
-                style={[
-                  styles.availabilityText,
-                  {
-                    color: availabilityColor,
+                    backgroundColor: availabilityColor + '15',
+                    borderColor: availabilityColor + '40',
                   },
                 ]}
               >
-                {item.material_status}
-              </Text>
-            </View>
+                <View style={[styles.availabilityDot, { backgroundColor: availabilityColor }]} />
+                <Text style={[styles.availabilityText, { color: availabilityColor }]}>
+                  {item.material_status}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {!!item.observation && (
+            <Text
+              style={[
+                styles.observation,
+                { color: colors.textSecondary, backgroundColor: colors.surfaceElevated },
+              ]}
+            >
+              📝 {item.observation}
+            </Text>
           )}
         </View>
-
-        {!!item.observation && (
-          <Text
-            style={[
-              styles.observation,
-              {
-                color: colors.textSecondary,
-                backgroundColor: colors.surfaceElevated,
-              },
-            ]}
-          >
-            📝 {item.observation}
-          </Text>
-        )}
       </View>
+      </Swipeable>
     );
   };
 
@@ -420,25 +433,33 @@ export default function Planilha2Screen() {
         },
       ]}
     >
-      <View
+      <LinearGradient
+        colors={isDark ? ['#1A3A25', '#13212C'] : ['#F0FAF0', '#FFFFFF']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={[
           styles.header,
           {
             borderBottomColor: colors.border,
-            backgroundColor: colors.surface,
           },
         ]}
       >
         <View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={[styles.headerBadge, { backgroundColor: colors.primary + '25', borderColor: colors.primary + '50' }]}>
+              <Text style={[styles.headerBadgeText, { color: colors.primary }]}>OPERACIONAL</Text>
+            </View>
+          </View>
           <Text
             style={[
               styles.title,
               {
                 color: colors.textPrimary,
+                marginTop: 4,
               },
             ]}
           >
-            Planilha Operacional
+            Planilha
           </Text>
 
           <Text
@@ -474,10 +495,10 @@ export default function Planilha2Screen() {
               },
             ]}
           >
-            <Ionicons name="list" size={20} color="#FFF" />
+            <Ionicons name="list" size={20} color="#000" />
           </TouchableOpacity>
         </View>
-      </View>
+      </LinearGradient>
 
       <View style={styles.searchContainer}>
         <View
@@ -525,12 +546,15 @@ export default function Planilha2Screen() {
                     styles.filterBtn,
                     {
                       backgroundColor: sitFilter === sit ? colors.primary : colors.surfaceElevated,
+                      borderColor: sitFilter === sit ? colors.primaryActive ?? colors.primary : colors.border,
                     },
                   ]}
                 >
                   <Text
                     style={{
                       color: sitFilter === sit ? '#FFF' : colors.textPrimary,
+                      fontWeight: sitFilter === sit ? '700' : '500',
+                      fontSize: 13,
                     }}
                   >
                     {sit}
@@ -561,12 +585,15 @@ export default function Planilha2Screen() {
                     {
                       backgroundColor:
                         availabilityFilter === status ? colors.primary : colors.surfaceElevated,
+                      borderColor: availabilityFilter === status ? colors.primaryActive ?? colors.primary : colors.border,
                     },
                   ]}
                 >
                   <Text
                     style={{
                       color: availabilityFilter === status ? '#FFF' : colors.textPrimary,
+                      fontWeight: availabilityFilter === status ? '700' : '500',
+                      fontSize: 13,
                     }}
                   >
                     {status}
@@ -576,6 +603,29 @@ export default function Planilha2Screen() {
             </ScrollView>
           </View>
         </ScrollView>
+      </View>
+
+      {/* Stats strip */}
+      <View style={[styles.statsStrip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={styles.statItem}>
+          <Text style={[styles.statNum, { color: colors.textPrimary }]}>{sitCounts['Todos'] ?? 0}</Text>
+          <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Total</Text>
+        </View>
+        <View style={[styles.statSep, { backgroundColor: colors.border }]} />
+        <View style={styles.statItem}>
+          <Text style={[styles.statNum, { color: '#3B82F6' }]}>{sitCounts['Recebido'] ?? 0}</Text>
+          <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Recebido</Text>
+        </View>
+        <View style={[styles.statSep, { backgroundColor: colors.border }]} />
+        <View style={styles.statItem}>
+          <Text style={[styles.statNum, { color: '#F59E0B' }]}>{sitCounts['A preparar'] ?? 0}</Text>
+          <Text style={[styles.statLabel, { color: colors.textTertiary }]}>A preparar</Text>
+        </View>
+        <View style={[styles.statSep, { backgroundColor: colors.border }]} />
+        <View style={styles.statItem}>
+          <Text style={[styles.statNum, { color: colors.primary }]}>{sitCounts['Preparado'] ?? 0}</Text>
+          <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Preparado</Text>
+        </View>
       </View>
 
       {loading ? (
@@ -715,13 +765,55 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     marginRight: 8,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+
+  headerBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+
+  headerBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+
+  swipeAction: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    marginBottom: 12,
+    borderRadius: 16,
+  },
+
+  swipeEditAction: {
+    backgroundColor: '#89D329',
+    marginLeft: 12,
+    marginRight: 4,
+  },
+
+  swipeDeleteAction: {
+    backgroundColor: '#EF4444',
+    marginRight: 12,
+    marginLeft: 4,
+  },
+
+  swipeActionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 4,
   },
 
   card: {
     borderWidth: 1,
     borderRadius: 16,
-    padding: 14,
     marginBottom: 12,
+    overflow: 'hidden',
+    flexDirection: 'row',
     shadowOffset: {
       width: 0,
       height: 2,
@@ -729,6 +821,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+
+  cardAccent: {
+    width: 4,
+    flexShrink: 0,
+  },
+
+  cardInner: {
+    flex: 1,
+    padding: 14,
   },
 
   cardHeader: {
@@ -771,8 +873,8 @@ const styles = StyleSheet.create({
   },
 
   productBadge: {
-    width: 60,
-    height: 60,
+    width: 48,
+    height: 48,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
@@ -780,9 +882,40 @@ const styles = StyleSheet.create({
   },
 
   productBadgeText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '900',
-    color: '#000',
+  },
+
+  statsStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 12,
+    marginBottom: 4,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingVertical: 10,
+  },
+
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+  },
+
+  statNum: {
+    fontSize: 18,
+    fontWeight: '800',
+    lineHeight: 22,
+  },
+
+  statLabel: {
+    fontSize: 10,
+    fontWeight: '500',
+  },
+
+  statSep: {
+    width: 1,
+    height: 28,
   },
 
   productName: {
